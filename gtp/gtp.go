@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/869413421/wechatbot/config"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"wechatbot/config"
 )
 
 const BASEURL = "https://api.openai.com/v1/"

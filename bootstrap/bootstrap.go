@@ -1,11 +1,12 @@
 package bootstrap
 
 import (
-	"github.com/869413421/wechatbot/handlers"
-	"github.com/eatmoreapple/openwechat"
 	"log"
-)
+	"wechatbot/handlers"
+	"wechatbot/utils"
 
+	"github.com/eatmoreapple/openwechat"
+)
 
 func Run() {
 	//bot := openwechat.DefaultBot()
@@ -18,16 +19,34 @@ func Run() {
 	bot.UUIDCallback = handlers.QrCodeCallBack
 
 	// 创建热存储容器对象
-	reloadStorage := openwechat.NewJsonFileHotReloadStorage("storage.json")
+	reloadStorage := openwechat.NewFileHotReloadStorage("storage.json")
+	defer reloadStorage.Close()
 
 	// 执行热登录
-	err := bot.HotLogin(reloadStorage)
+	err := bot.HotLogin(reloadStorage, openwechat.NewRetryLoginOption())
 	if err != nil {
 		if err = bot.Login(); err != nil {
 			log.Printf("login error: %v \n", err)
 			return
 		}
 	}
+
+	user, _ := bot.GetCurrentUser()
+	utils.BotMap[user.UserName] = bot
+
+	//user, err := bot.GetCurrentUser()
+	//if err != nil {
+	//	log.Printf("GetCurrentUser error: %v \n", err)
+	//}
+	//
+	//friends, err := user.Friends()
+	//if err != nil {
+	//	log.Printf("GetCurrentUser error: %v \n", err)
+	//}
+	//for _, friend := range friends {
+	//	fmt.Printf("friend:%+v", friend)
+	//}
+
 	// 阻塞主goroutine, 直到发生异常或者用户主动退出
-	bot.Block()
+	//bot.Block()
 }

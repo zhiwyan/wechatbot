@@ -1,11 +1,12 @@
 package service
 
 import (
-	"github.com/869413421/wechatbot/config"
-	"github.com/patrickmn/go-cache"
 	"strings"
 	"time"
 	"unicode/utf8"
+	"wechatbot/config"
+
+	cache "github.com/patrickmn/go-cache"
 )
 
 // UserServiceInterface 用户业务接口

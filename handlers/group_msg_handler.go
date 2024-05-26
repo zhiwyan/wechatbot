@@ -1,10 +1,13 @@
 package handlers
 
 import (
-	"github.com/869413421/wechatbot/gtp"
-	"github.com/eatmoreapple/openwechat"
+	//"wechatbot/gtp"
 	"log"
 	"strings"
+	"wechatbot/sdk"
+	"wechatbot/utils"
+
+	"github.com/eatmoreapple/openwechat"
 )
 
 var _ MessageHandlerInterface = (*GroupMessageHandler)(nil)
@@ -15,8 +18,8 @@ type GroupMessageHandler struct {
 
 // handle 处理消息
 func (g *GroupMessageHandler) handle(msg *openwechat.Message) error {
-	if msg.IsText() {
-		return g.ReplyText(msg)
+	if msg.MsgType == openwechat.MsgTypeApp && msg.AppMsgType == openwechat.AppMsgTypeUrl {
+		return g.ReplyAppMsg(msg)
 	}
 	return nil
 }
@@ -33,65 +36,191 @@ func (g *GroupMessageHandler) ReplyText(msg *openwechat.Message) error {
 	group := openwechat.Group{User: sender}
 	log.Printf("Received Group %v Text Msg : %v", group.NickName, msg.Content)
 
-	// 不是@的不处理
-	if !msg.IsAt() {
-		return nil
-	}
+	//// 不是@的不处理
+	//if !msg.IsAt() {
+	//	return nil
+	//}
+	//
+	//// 获取@我的用户
+	//groupSender, err := msg.SenderInGroup()
+	//if err != nil {
+	//	log.Printf("get sender in group error :%v \n", err)
+	//	return err
+	//}
+	//atText := "@" + groupSender.NickName + " "
 
-	// 获取@我的用户
-	groupSender, err := msg.SenderInGroup()
-	if err != nil {
-		log.Printf("get sender in group error :%v \n", err)
-		return err
-	}
-	atText := "@" + groupSender.NickName + " "
-
-	if UserService.ClearUserSessionContext(sender.ID(), msg.Content) {
-		_, err = msg.ReplyText(atText + "上下文已经清空了，你可以问下一个问题啦。")
-		if err != nil {
-			log.Printf("response user error: %v \n", err)
-		}
-		return nil
-	}
-
-	// 替换掉@文本，设置会话上下文，然后向GPT发起请求。
 	requestText := buildRequestText(sender, msg)
 	if requestText == "" {
 		return nil
 	}
-	reply, err := gtp.Completions(requestText)
-	if err != nil {
-		log.Printf("gtp request error: %v \n", err)
-		_, err = msg.ReplyText("机器人神了，我一会发现了就去修。")
-		if err != nil {
-			log.Printf("response group error: %v \n", err)
-		}
-		return err
-	}
-	if reply == "" {
-		return nil
-	}
 
-	// 回复@我的用户
-	reply = strings.TrimSpace(reply)
-	reply = strings.Trim(reply, "\n")
-	// 设置上下文
-	UserService.SetUserSessionContext(sender.ID(), requestText, reply)
-	replyText := atText + reply
+	replyText := "本消息由 Bot回复" + requestText
+	//replyText := atText + "本消息由 Bot回复" + requestText
 	_, err = msg.ReplyText(replyText)
 	if err != nil {
 		log.Printf("response group error: %v \n", err)
 	}
 	return err
+	//
+	//// 获取@我的用户
+	//groupSender, err := msg.SenderInGroup()
+	//if err != nil {
+	//	log.Printf("get sender in group error :%v \n", err)
+	//	return err
+	//}
+	//atText := "@" + groupSender.NickName + " "
+	//
+	//if UserService.ClearUserSessionContext(sender.ID(), msg.Content) {
+	//	_, err = msg.ReplyText(atText + "上下文已经清空了，你可以问下一个问题啦。")
+	//	if err != nil {
+	//		log.Printf("response user error: %v \n", err)
+	//	}
+	//	return nil
+	//}
+	//
+	//// 替换掉@文本，设置会话上下文，然后向GPT发起请求。
+	//requestText := buildRequestText(sender, msg)
+	//if requestText == "" {
+	//	return nil
+	//}
+	//reply, err := gtp.Completions(requestText)
+	//if err != nil {
+	//	log.Printf("gtp request error: %v \n", err)
+	//	_, err = msg.ReplyText("机器人神了，我一会发现了就去修。")
+	//	if err != nil {
+	//		log.Printf("response group error: %v \n", err)
+	//	}
+	//	return err
+	//}
+	//if reply == "" {
+	//	return nil
+	//}
+	//
+	//// 回复@我的用户
+	//reply = strings.TrimSpace(reply)
+	//reply = strings.Trim(reply, "\n")
+	//// 设置上下文
+	//UserService.SetUserSessionContext(sender.ID(), requestText, reply)
+	//replyText := atText + reply
+	//_, err = msg.ReplyText(replyText)
+	//if err != nil {
+	//	log.Printf("response group error: %v \n", err)
+	//}
+	//return err
 }
 
 // buildRequestText 构建请求GPT的文本，替换掉机器人名称，然后检查是否有上下文，如果有拼接上
 func buildRequestText(sender *openwechat.User, msg *openwechat.Message) string {
-	replaceText := "@" + sender.Self.NickName
+	replaceText := "@" + sender.Self().NickName
 	requestText := strings.TrimSpace(strings.ReplaceAll(msg.Content, replaceText, ""))
 	if requestText == "" {
 		return ""
 	}
 	requestText = UserService.GetUserSessionContext(sender.ID()) + requestText
 	return requestText
+}
+
+func (g *GroupMessageHandler) ReplyCard(msg *openwechat.Message) error {
+	// 接收群消息
+	sender, err := msg.Sender()
+	if err != nil {
+		log.Printf("Sender msg:%v, error: %v \n", msg, err)
+	}
+	log.Printf("Received sender %+v", sender)
+	log.Printf("Received msg %+v Text Msg : %v", msg, msg.Content)
+	log.Printf("Received msg.url %+v", msg.Url)
+
+	//err := xml.Unmarshal(data, &msg);
+	_, err = msg.ReplyText("xyhs" + msg.Url)
+	if err != nil {
+		log.Printf("response user error: %v \n", err)
+	}
+	return err
+
+	return nil
+}
+
+func (g *GroupMessageHandler) ReplyAppMsg(m *openwechat.Message) error {
+	user, err := m.Bot().GetCurrentUser()
+	if err != nil {
+		log.Println("UserMessageHandler.ReplyAppMsg err-----", err)
+	}
+
+	// 获取@我的用户
+	groupSender, err := m.SenderInGroup()
+	if err != nil {
+		log.Printf("get sender in group error :%v \n", err)
+		return err
+	}
+
+	log.Println("UserMessageHandler.ReplyAppMsg groupSender-----", groupSender)
+
+	//sender, err := m.Sender()
+	//if err != nil {
+	//	log.Printf("Sender error :%v \n", err)
+	//	return err
+	//}
+	//friends, err := sender.Self().Friends()
+	//if err != nil {
+	//	log.Printf("Friends error :%v \n", err)
+	//	return err
+	//}
+	//zhiwyan := friends.GetByNickName("zhiwyan")
+
+	//if strings.Contains(m.Url, "mobile.yangkeduo.com") {
+	//	log.Printf("---UserMessageHandler.ReplyAppMsg User %v fromUser: %v googId: %v @group: %v\n", user.User.UserName, msg.FromUserName, utils.GetPddGoodId(msg.Url), atText)
+	//} else {
+	//	log.Printf("---UserMessageHandler.ReplyAppMsg User %v fromUser: %v msg.Url: %v @group: %v\n", user.User.UserName, msg.FromUserName, msg.Url, atText)
+	//}
+
+	// 获取@我的用户
+	groupSender, err = m.SenderInGroup()
+	if err != nil {
+		log.Printf("get sender in group error :%v \n", err)
+		return err
+	}
+	atText := "@" + groupSender.NickName + " "
+
+	if strings.Contains(m.Url, "mobile.yangkeduo.com") {
+		pddUrl := utils.GetPddUri(m.Url)
+		if len(pddUrl) > 0 {
+			//req := m.Bot().Storage.Request
+			//info := m.Bot().Storage.LoginInfo
+			//
+			//msg := openwechat.NewSendMessage(openwechat.MsgTypeText, pddUrl, user.UserName, zhiwyan.UserName, "")
+			//wxSendMsgOption := &openwechat.ClientWebWxSendMsgOptions{
+			//	BaseRequest: req,
+			//	LoginInfo:   info,
+			//	Message:     msg,
+			//}
+			//_, err = m.Bot().Caller.Client.WebWxSendMsg(m.Bot().Context(), wxSendMsgOption)
+			//if err != nil {
+			//	log.Printf("WebWxSendAppMsgUrl error: %v \n", err)
+			//	return err
+			//}
+
+			mIns := sdk.NewMirrorapi()
+			mreq := sdk.ReciveWeixinArgs{
+				Pddurl:       pddUrl,
+				BotUserName:  user.UserName,
+				SendUserName: m.FromUserName,
+				AtNickName:   groupSender.NickName,
+			}
+
+			_, err := mIns.ReciveWeixin(mreq)
+			if err != nil {
+				log.Printf("ReplyText error: %v \n", err)
+				return err
+			}
+
+			replyText := atText + "您好，我已收到您的消息，正在处理中，请稍等..."
+			_, err = m.ReplyText(replyText)
+			if err != nil {
+				log.Printf("ReplyText error: %v \n", err)
+				return err
+			}
+		}
+	}
+
+	return nil
 }

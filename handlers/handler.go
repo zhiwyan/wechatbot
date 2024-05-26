@@ -2,18 +2,21 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/869413421/wechatbot/config"
-	"github.com/869413421/wechatbot/service"
-	"github.com/eatmoreapple/openwechat"
-	"github.com/skip2/go-qrcode"
 	"log"
 	"runtime"
+	"wechatbot/config"
+	"wechatbot/service"
+
+	"github.com/eatmoreapple/openwechat"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 // MessageHandlerInterface 消息处理接口
 type MessageHandlerInterface interface {
 	handle(*openwechat.Message) error
 	ReplyText(*openwechat.Message) error
+	ReplyCard(*openwechat.Message) error
+	ReplyAppMsg(*openwechat.Message) error
 }
 
 type HandlerType string
@@ -68,4 +71,25 @@ func Handler(msg *openwechat.Message) {
 
 	// 私聊
 	handlers[UserHandler].handle(msg)
+}
+
+type CardMsg struct {
+	AppMsg struct {
+		Title     string `xml:"title"`
+		Des       string `xml:"des"`
+		URL       string `xml:"url"`
+		AppAttach struct {
+			CDNThumbURL    string `xml:"cdnthumburl"`
+			CDNThumbMD5    string `xml:"cdnthumbmd5"`
+			CDNThumbLength string `xml:"cdnthumblength"`
+			CDNThumbWidth  string `xml:"cdnthumbwidth"`
+			CDNThumbHeight string `xml:"cdnthumbheight"`
+			CDNThumbAESKey string `xml:"cdnthumbaeskey"`
+			AESKey         string `xml:"aeskey"`
+			EncryVer       string `xml:"encryver"`
+			FileKey        string `xml:"filekey"`
+		} `xml:"appattach"`
+		MD5        string `xml:"md5"`
+		StatExtStr string `xml:"statextstr"`
+	} `xml:"appmsg"`
 }
